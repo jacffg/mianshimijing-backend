@@ -30,5 +30,12 @@ public class EasyExcelTest {
                 .doReadSync();
         System.out.println(list);
     }
+    @Test
+    public void doWordForbidden() throws FileNotFoundException {
+        String word = "你是个大傻逼无敌了";
+        boolean b = WordUtils.containsForbiddenWords(word);
+        System.out.println(b);
+
+    }
 
 }

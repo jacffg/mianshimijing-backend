@@ -20,6 +20,7 @@ import com.yupi.mianshiya.service.CommentService;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import com.yupi.mianshiya.utils.SqlUtils;
+import com.yupi.mianshiya.utils.WordUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -70,6 +71,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         // 修改数据时，有参数则校验
         // todo 补充校验规则
         if (StringUtils.isNotBlank(content)) {
+            if (WordUtils.containsForbiddenWords(content)){
+                ThrowUtils.throwIf(WordUtils.containsForbiddenWords(content), ErrorCode.WORD_FORBIDDEN_ERROR, "包含违禁词");
+            }
             ThrowUtils.throwIf(content.length() > 1024, ErrorCode.PARAMS_ERROR, "评论过长");
         }
     }
@@ -235,6 +239,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 //添加回复人
                 Long parentId = comment.getParentId();
                 Comment parentComment = this.getById(parentId);
+                if (parentComment==null){
+                    continue;
+                }
                 User repliedUser = userService.getById(parentComment.getUserId());
                 commentVO.setRepliedUser(userService.getUserVO(repliedUser));
                 replies.add(commentVO);
