@@ -174,6 +174,23 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
         UserVO userVO = userService.getUserVO(user);
         questionVO.setUser(userVO);
+//        // 2. 已登录，获取用户点赞、收藏状态
+//        long commentId = comment.getId();
+//        User loginUser = userService.getLoginUserPermitNull(request);
+//        if (loginUser != null) {
+//            // 获取点赞
+//            QueryWrapper<CommentThumb> commentThumbQueryWrapper = new QueryWrapper<>();
+//            commentThumbQueryWrapper.in("commentId", commentId);
+//            commentThumbQueryWrapper.eq("userId", loginUser.getId());
+//            CommentThumb commentThumb = commentThumbMapper.selectOne(commentThumbQueryWrapper);
+//            commentVO.setHasThumb(commentThumb != null);
+//            // 获取收藏
+//            QueryWrapper<CommentFavour> commentFavourQueryWrapper = new QueryWrapper<>();
+//            commentFavourQueryWrapper.in("commentId", commentId);
+//            commentFavourQueryWrapper.eq("userId", loginUser.getId());
+//            CommentFavour commentFavour = commentFavourMapper.selectOne(commentFavourQueryWrapper);
+//            commentVO.setHasFavour(commentFavour != null);
+//        }
         // endregion
         return questionVO;
     }

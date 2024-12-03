@@ -38,6 +38,10 @@ public class Comment implements Serializable {
      * 父评论 ID，支持多级嵌套回复
      */
     private Long parentId;
+    /**
+     * 顶级父 ID，支持多级嵌套回复
+     */
+    private Long ancestorId;
 
     /**
      * 创建时间
