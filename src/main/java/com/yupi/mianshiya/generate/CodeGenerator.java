@@ -31,8 +31,8 @@ public class CodeGenerator {
         // 指定生成参数
         String packageName = "com.yupi.mianshiya";
         String dataName = "题目标记";
-        String dataKey = "question";
-        String upperDataKey = "Comment";
+        String dataKey = "questionMark";
+        String upperDataKey = "QuestionMark";
 
         // 封装生成参数
         Map<String, Object> dataModel = new HashMap<>();

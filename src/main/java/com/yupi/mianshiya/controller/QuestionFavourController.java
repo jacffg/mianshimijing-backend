@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.mianshiya.annotation.AuthCheck;
 import com.yupi.mianshiya.common.BaseResponse;
@@ -12,16 +13,14 @@ import com.yupi.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.yupi.mianshiya.model.dto.questionfavour.QuestionFavourAddRequest;
 import com.yupi.mianshiya.model.dto.questionfavour.QuestionFavourQueryRequest;
 import com.yupi.mianshiya.model.entity.Question;
+import com.yupi.mianshiya.model.entity.QuestionFavour;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.QuestionVO;
 import com.yupi.mianshiya.service.QuestionFavourService;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -109,5 +108,29 @@ public class QuestionFavourController {
         Page<Question> questionPage = questionFavourService.listFavourQuestionByPage(new Page<>(current, size),
                 questionService.getQueryWrapper(questionFavourQueryRequest.getQuestionQueryRequest()), userId);
         return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+    }
+    /**
+     * 用户是否收藏
+     *
+     * @param
+     * @param request
+     */
+    @GetMapping("/getisCollect")
+    public BaseResponse<Boolean> getisCollect( Long questionId,HttpServletRequest request) {
+        if ( questionId== null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        QuestionFavour questionFavour = new QuestionFavour();
+        questionFavour.setQuestionId(questionId);
+        questionFavour.setUserId(loginUser.getId());
+        QueryWrapper<QuestionFavour> wrapper = new QueryWrapper<>(questionFavour);
+        QuestionFavour questionFavourByData = questionFavourService.getOne(wrapper);
+        boolean res = false;
+        if (questionFavourByData!=null){
+            //已收藏
+            res = true;
+        }
+        return ResultUtils.success(res);
     }
 }
