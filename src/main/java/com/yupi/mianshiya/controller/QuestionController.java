@@ -15,6 +15,7 @@ import com.yupi.mianshiya.exception.ThrowUtils;
 import com.yupi.mianshiya.model.dto.question.*;
 import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.User;
+import com.yupi.mianshiya.model.enums.UserRoleEnum;
 import com.yupi.mianshiya.model.vo.HotTagsVO;
 import com.yupi.mianshiya.model.vo.QuestionVO;
 import com.yupi.mianshiya.service.QuestionService;
@@ -341,6 +342,14 @@ public class QuestionController {
      */
     @PostMapping("/ai_generate")
     public BaseResponse<QuestionVO> aiGenerateQuestion(Long questionId, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        if (loginUser==null){
+            throw  new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        //仅限管理员和vip调用
+        if (!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE) && !loginUser.getUserRole().equals(UserConstant.VIP_ROLE)){
+            throw  new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
         return ResultUtils.success(questionService.getQuestionByAi(questionId));
     }
     /**

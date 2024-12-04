@@ -76,6 +76,10 @@ public class Question implements Serializable {
      * 浏览数
      */
     private Long viewNum;
+    /**
+     * 收藏数
+     */
+    private Integer favourNum;
 
     /**
      * 是否删除

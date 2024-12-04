@@ -81,6 +81,10 @@ public class QuestionVO implements Serializable {
      * 浏览数
      */
     private Long viewNum;
+    /**
+     * 收藏数
+     */
+    private Integer favourNum;
 
     /**
      * 封装类转对象

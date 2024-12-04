@@ -30,8 +30,8 @@ public class CodeGenerator {
     public static void main(String[] args) throws TemplateException, IOException {
         // 指定生成参数
         String packageName = "com.yupi.mianshiya";
-        String dataName = "题目评论";
-        String dataKey = "comment";
+        String dataName = "题目标记";
+        String dataKey = "question";
         String upperDataKey = "Comment";
 
         // 封装生成参数

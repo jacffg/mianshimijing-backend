@@ -77,5 +77,10 @@ public class QuestionQueryRequest extends PageRequest implements Serializable {
      */
     private Long viewNum;
 
+    /**
+     * 收藏数
+     */
+    private Integer favourNum;
+
     private static final long serialVersionUID = 1L;
 }

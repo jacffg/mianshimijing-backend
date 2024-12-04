@@ -130,3 +130,25 @@ create table comment
 create index comment_questionId
     on comment (questionId);
 
+-- 题目收藏表（硬删除）
+create table if not exists post_favour
+(
+    id         bigint auto_increment comment 'id' primary key,
+    questionId     bigint                             not null comment '题目 id',
+    userId     bigint                             not null comment '创建用户 id',
+    createTime datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    index idx_questionId (questionId),
+    index idx_userId (userId)
+    ) comment '题目收藏';
+
+create table question_mark
+(
+    id         bigint auto_increment comment '标记 ID' primary key,
+    questionId bigint                      not null comment '题目 ID',
+    userId     bigint                      not null comment '用户 ID',
+    markType    varchar(512)                        not null comment '标记类型',
+    createTime datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    isDelete   tinyint  default 0          not null comment '是否删除'
+)comment '题目标记';

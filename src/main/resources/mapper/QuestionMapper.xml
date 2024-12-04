@@ -18,13 +18,15 @@
             <result property="diffity" column="diffity" jdbcType="VARCHAR"/>
             <result property="isVip" column="isVip" jdbcType="TINYINT"/>
             <result property="viewNum" column="viewNum" jdbcType="BIGINT"/>
-        <result property="questionNum" column="questionNum" jdbcType="BIGINT"/>
+            <result property="questionNum" column="questionNum" jdbcType="BIGINT"/>
+            <result property="favourNum" column="favourNum" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,title,content,
         tags,answer,userId,
         editTime,createTime,updateTime,
-        isDelete,diffity,isVip
+        isDelete,diffity,isVip,
+        viewNum,questionNum,favourNum
     </sql>
 </mapper>
