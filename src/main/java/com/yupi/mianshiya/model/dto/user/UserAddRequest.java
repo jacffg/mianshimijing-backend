@@ -31,6 +31,10 @@ public class UserAddRequest implements Serializable {
      * 用户角色: user, admin
      */
     private String userRole;
+    /**
+     * 是否展示答案
+     */
+    private Integer likeShowAnswer;
 
     private static final long serialVersionUID = 1L;
 }

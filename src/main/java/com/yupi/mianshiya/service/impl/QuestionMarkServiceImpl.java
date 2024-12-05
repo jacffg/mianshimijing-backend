@@ -13,6 +13,7 @@ import com.yupi.mianshiya.model.dto.questionMark.QuestionMarkQueryRequest;
 import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.QuestionMark;
 import com.yupi.mianshiya.model.entity.User;
+import com.yupi.mianshiya.model.enums.MarkTypeEnum;
 import com.yupi.mianshiya.model.vo.QuestionMarkVO;
 import com.yupi.mianshiya.model.vo.UserVO;
 import com.yupi.mianshiya.service.QuestionMarkService;
@@ -64,7 +65,7 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
             //校验
             Question question = questionService.getById(questionId);
             ThrowUtils.throwIf(question==null, ErrorCode.NOT_FOUND_ERROR);
-            ThrowUtils.throwIf(StringUtils.isBlank(markType), ErrorCode.PARAMS_ERROR);
+
             //不能重复添加
             QuestionMark questionMarkTemp = new QuestionMark();
             questionMarkTemp.setQuestionId(questionMark.getQuestionId());
@@ -76,7 +77,8 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
             }
 
         }
-
+        ThrowUtils.throwIf(StringUtils.isBlank(markType), ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(MarkTypeEnum.getEnumByValue(markType)==null, ErrorCode.PARAMS_ERROR);
     }
 
     /**

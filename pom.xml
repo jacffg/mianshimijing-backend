@@ -124,6 +124,13 @@
             <version>release-V4-2.0.2</version>
         </dependency>
 
+<!--        shardingsphere-->
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
+            <version>5.2.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>

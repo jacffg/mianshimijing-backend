@@ -42,6 +42,10 @@ public class UserVO implements Serializable {
      * 创建时间
      */
     private Date createTime;
+    /**
+     * 是否展示答案
+     */
+    private Integer likeShowAnswer;
 
     private static final long serialVersionUID = 1L;
 }

@@ -43,6 +43,37 @@ spring:
     multipart:
       # 大小限制
       max-file-size: 10MB
+  # 分库分表配置
+  shardingsphere:
+    #数据源配置
+    datasource:
+      # 多数据源以逗号隔开即可
+      names: mianshiya
+      mianshiya:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/mianshiya?useSSL=false&allowPublicKeyRetrieval=false
+        username: root
+        password: wanjiayang0.
+    # 规则配置
+    rules:
+      sharding:
+        # 分片算法配置
+        sharding-algorithms:
+          # 自定义分片规则名
+          comment-table-inline:
+            ## inline 类型是简单的配置文件里面就能写的类型，其他还有自定义类等等
+            type: INLINE
+            props:
+              algorithm-expression: comment_$->{questionId % 2}
+        tables:
+          comment:
+            actual-data-nodes: mianshiya.comment_$->{0..1}
+            # 分表策略
+            table-strategy:
+              standard:
+                sharding-column: questionId
+                sharding-algorithm-name: comment-table-inline
 server:
   address: 0.0.0.0
   port: 8101

@@ -131,6 +131,7 @@ public class CommentController {
         long id = commentUpdateRequest.getId();
         Comment oldComment = commentService.getById(id);
         ThrowUtils.throwIf(oldComment == null, ErrorCode.NOT_FOUND_ERROR);
+        comment.setQuestionId(null);
         // 操作数据库
         boolean result = commentService.updateById(comment);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -243,6 +244,7 @@ public class CommentController {
         if (!oldComment.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
+        comment.setQuestionId(null);
         // 操作数据库
         boolean result = commentService.updateById(comment);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);

@@ -18,6 +18,7 @@
             <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
             <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
             <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+            <result property="likeShowAnswer" column="likeShowAnswer" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
@@ -25,6 +26,6 @@
         unionId,mpOpenId,userName,
         userAvatar,userProfile,userRole,
         editTime,createTime,updateTime,
-        isDelete
+        isDelete,likeShowAnswer
     </sql>
 </mapper>

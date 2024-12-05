@@ -85,6 +85,10 @@ public class User implements Serializable {
      */
     @TableLogic
     private Integer isDelete;
+    /**
+     * 是否展示答案
+     */
+    private Integer likeShowAnswer;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
