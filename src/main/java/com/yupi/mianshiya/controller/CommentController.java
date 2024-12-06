@@ -16,9 +16,12 @@ import com.yupi.mianshiya.model.dto.comment.CommentEditRequest;
 import com.yupi.mianshiya.model.dto.comment.CommentQueryRequest;
 import com.yupi.mianshiya.model.dto.comment.CommentUpdateRequest;
 import com.yupi.mianshiya.model.entity.Comment;
+import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.CommentVO;
+import com.yupi.mianshiya.model.vo.MyCommentVO;
 import com.yupi.mianshiya.service.CommentService;
+import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -26,7 +29,11 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 题目评论接口
@@ -44,7 +51,8 @@ public class CommentController {
 
     @Resource
     private UserService userService;
-
+    @Resource
+    private QuestionService questionService;
     // region 增删改查
 
     /**
@@ -68,7 +76,7 @@ public class CommentController {
             Comment commentParent = commentService.getById(parentId);
             if (commentParent.getAncestorId() == null) {//二级评论
                 comment.setAncestorId(commentParent.getId());
-            }else {
+            } else {
                 comment.setAncestorId(commentParent.getAncestorId());
             }
         }
@@ -264,6 +272,52 @@ public class CommentController {
 
         // 获取封装类
         return ResultUtils.success(commentService.getCommentsByQuestionId(questionId, request));
+    }
+
+    /**
+     * 分页获取当前登录用户创建的题目评论列表
+     *
+     * @param request
+     * @return
+     */
+    @PostMapping("/myComments")
+    public BaseResponse<List<MyCommentVO>> listMyComments(HttpServletRequest request) {
+        // 补充查询条件，只查询当前登录用户的数据
+        User loginUser = userService.getLoginUser(request);
+
+        QueryWrapper<Comment> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userId", loginUser.getId());
+        queryWrapper.orderByDesc("updateTime");
+        queryWrapper.isNull("ancestorId"); // 添加条件，某列为空
+        List<Comment> commentList = commentService.list(queryWrapper);
+        //为空
+        if (commentList.isEmpty()){
+            return ResultUtils.success(null);
+        }
+        Set<Long> questionIdSet = commentList.stream().map(Comment::getQuestionId).collect(Collectors.toSet());
+        QueryWrapper<Question> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "title", "questionNum");
+        wrapper.in("id", questionIdSet);
+        List<Question> questionList = questionService.list(wrapper);
+        List<MyCommentVO> res = new ArrayList<>();
+
+// 转换为 Map，key 为 getQuestionId，value 为 Question
+        Map<Long, Question> questionMap = questionList.stream()
+                .collect(Collectors.toMap(
+                        Question::getId, // key: QuestionId
+                        question -> question       // value: Question 对象
+                ));
+        commentList.stream().forEach(comment -> {
+            MyCommentVO myCommentVO = new MyCommentVO();
+            BeanUtils.copyProperties(comment, myCommentVO);
+            Question question = questionMap.get(comment.getQuestionId());
+            myCommentVO.setQuestionTitle(question.getTitle());
+            myCommentVO.setQuestionId(question.getId());
+            myCommentVO.setQuestionNum(question.getQuestionNum());
+            res.add(myCommentVO);
+        });
+
+        return ResultUtils.success(res);
     }
 
 }
