@@ -33,6 +33,14 @@ public class RedeemAddRequest implements Serializable {
      * 使用时间
      */
     private Date useTime;
+    /**
+     * 过期时间
+     */
+    private Date expirationTime;
+    /**
+     * 是否使用
+     */
+    private Integer isUsed;
 
     private static final long serialVersionUID = 1L;
 }

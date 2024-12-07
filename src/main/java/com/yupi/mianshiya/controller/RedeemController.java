@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Calendar;
 import java.util.Date;
 
 /**
@@ -53,10 +54,15 @@ public class RedeemController {
         ThrowUtils.throwIf(redeemAddRequest == null, ErrorCode.PARAMS_ERROR);
         Redeem redeem = new Redeem();
         BeanUtils.copyProperties(redeemAddRequest, redeem);
+        //默认过期时间为一周
+        if (redeem.getExpirationTime()==null){
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date()); // 设置当前时间
+            calendar.add(Calendar.WEEK_OF_YEAR, 1); // 增加一周
+            redeem.setExpirationTime(calendar.getTime());
+        }
         // 数据校验
         redeemService.validRedeem(redeem, true);
-        User loginUser = userService.getLoginUser(request);
-        redeem.setUserId(loginUser.getId());
         // 写入数据库
         boolean result = redeemService.save(redeem);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -83,10 +89,6 @@ public class RedeemController {
         // 判断是否存在
         Redeem oldRedeem = redeemService.getById(id);
         ThrowUtils.throwIf(oldRedeem == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或管理员可删除
-        if (!oldRedeem.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
         // 操作数据库
         boolean result = redeemService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -226,10 +228,6 @@ public class RedeemController {
         long id = redeemEditRequest.getId();
         Redeem oldRedeem = redeemService.getById(id);
         ThrowUtils.throwIf(oldRedeem == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或管理员可编辑
-        if (!oldRedeem.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
         // 操作数据库
         boolean result = redeemService.updateById(redeem);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);

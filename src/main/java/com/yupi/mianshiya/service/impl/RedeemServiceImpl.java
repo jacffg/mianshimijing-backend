@@ -56,12 +56,17 @@ public class RedeemServiceImpl extends ServiceImpl<RedeemMapper, Redeem> impleme
         ThrowUtils.throwIf(redeem == null, ErrorCode.PARAMS_ERROR);
         String code = redeem.getCode();
         Date useTime = redeem.getUseTime();
-        // 创建数据时，参数不能为空
-//        if (add) {
-//
-//        }
         // 修改数据时，有参数则校验
         ThrowUtils.throwIf(StringUtils.isBlank(code), ErrorCode.PARAMS_ERROR);
+        // 创建数据时，参数不能为空
+        if (add) {
+            QueryWrapper<Redeem> redeemQueryWrapper = new QueryWrapper<>();
+            redeemQueryWrapper.eq("code",code);
+            Redeem old = this.getOne(redeemQueryWrapper);
+            if (old!=null){
+                throw  new BusinessException(ErrorCode.PARAMS_ERROR,"兑换码重复");
+            }
+        }
         if (useTime != null) {
             ThrowUtils.throwIf(new Date().compareTo(useTime) < 0, ErrorCode.PARAMS_ERROR);
         }
@@ -187,11 +192,16 @@ public class RedeemServiceImpl extends ServiceImpl<RedeemMapper, Redeem> impleme
         if (redeem==null){
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR,"兑换码无效");
         }
+        if (redeem.getIsUsed()==1){
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR,"兑换码已被使用");
+        }
+        //是否过期
+        ThrowUtils.throwIf(new Date().compareTo(redeem.getExpirationTime()) > 0, ErrorCode.PARAMS_ERROR,"兑换码已过期");
         // 操作数据库
         redeem.setUserId(user.getId());
         redeem.setUseTime(new Date());
+        redeem.setIsUsed(1);
         this.updateById(redeem);
-        this.removeById(redeem.getId());
         //修改用户
         user.setUserRole(UserRoleEnum.VIP.getValue());
         userService.updateById(user);

@@ -161,7 +161,13 @@ create table if not exists redeem
     code      varchar(1024)                       null comment '兑换码',
     userId     bigint                              null comment '使用用户 id',
     useTime   datetime                      null comment '使用时间',
+    expirationTime datetime default CURRENT_TIMESTAMP not null comment '过期时间',
     createTime datetime default CURRENT_TIMESTAMP not null comment '创建时间',
     updateTime datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
     isDelete   tinyint  default 0                 not null comment '是否删除'
     ) comment '兑换表' collate = utf8mb4_unicode_ci;
+
+select now();
+show variables like '%time_zone%';
+set global time_zone='+8:00';
+

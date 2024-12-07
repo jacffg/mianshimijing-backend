@@ -38,11 +38,19 @@ public class Redeem implements Serializable {
      * 创建时间
      */
     private Date createTime;
+    /**
+     * 过期时间
+     */
+    private Date expirationTime;
 
     /**
      * 更新时间
      */
     private Date updateTime;
+    /**
+     * 是否使用
+     */
+    private Integer isUsed;
 
     /**
      * 是否删除

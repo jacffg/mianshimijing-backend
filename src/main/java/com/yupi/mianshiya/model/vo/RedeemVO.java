@@ -55,6 +55,14 @@ public class RedeemVO implements Serializable {
      * 更新时间
      */
     private Date updateTime;
+    /**
+     * 是否使用
+     */
+    private Integer isUsed;
+    /**
+     * 过期时间
+     */
+    private Date expirationTime;
 
     /**
      * 封装类转对象

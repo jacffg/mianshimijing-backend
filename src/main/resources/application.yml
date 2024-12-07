@@ -21,7 +21,7 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/mianshiya
+    url: jdbc:mysql://localhost:3306/mianshiya?serverTimezone=Asia/Shanghai
     username: root
     password: wanjiayang0.
   # Redis 配置
@@ -52,7 +52,7 @@ spring:
       mianshiya:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbc-url: jdbc:mysql://localhost:3306/mianshiya?useSSL=false&allowPublicKeyRetrieval=false
+        jdbc-url: jdbc:mysql://localhost:3306/mianshiya?useSSL=false&allowPublicKeyRetrieval=false&serverTimezone=Asia/Shanghai
         username: root
         password: wanjiayang0.
     # 规则配置

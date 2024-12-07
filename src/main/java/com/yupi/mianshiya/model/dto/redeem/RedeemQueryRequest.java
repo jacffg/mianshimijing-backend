@@ -40,6 +40,14 @@ public class RedeemQueryRequest extends PageRequest implements Serializable {
      * 使用时间
      */
     private Date useTime;
+    /**
+     * 是否使用
+     */
+    private Integer isUsed;
+    /**
+     * 过期时间
+     */
+    private Date expirationTime;
 
     private static final long serialVersionUID = 1L;
 }
