@@ -21,13 +21,17 @@ import com.yupi.mianshiya.model.vo.QuestionVO;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.yupi.mianshiya.constant.RedisConstant.getUserBrowseQuestionKeyPrefix;
 
 /**
  * 题目接口
@@ -45,6 +49,9 @@ public class QuestionController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private RedissonClient redissonClient;
 
     // region 增删改查
 
@@ -155,12 +162,25 @@ public class QuestionController {
         // 查询数据库
         Question question = questionService.getById(id);
         ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
-        //浏览数加1
-        question.setViewNum(question.getViewNum() + 1);
-        questionService.updateById(question);
+
+        // 获取用户的 IP 地址
+        String userIp = request.getRemoteAddr();
+
+        // 通过用户 IP 来区分浏览者，避免重复增加浏览数
+        String key = getUserBrowseQuestionKeyPrefix(question.getId(), userIp);
+
+        // 使用缓存框架判断该 IP 是否已经浏览过
+        if (!redissonClient.getBucket(key).isExists()) {
+            // 该 IP 没有浏览过，增加浏览数并设置过期时间
+            question.setViewNum(question.getViewNum() + 1);
+            questionService.updateById(question);
+            redissonClient.getBucket(key).set(key, 5, TimeUnit.MINUTES);
+        }
+
         // 获取封装类
         return ResultUtils.success(questionService.getQuestionVO(question, request));
     }
+
 
     /**
      * 分页获取题目列表（仅管理员可用）
