@@ -381,5 +381,25 @@ public class QuestionController {
     public BaseResponse<List<QuestionVO>> getRelatedQuestions(@RequestBody  QuestionRelatedRequest questionRelatedRequest, HttpServletRequest request) {
         return ResultUtils.success(questionService.getRelatesQuesions(questionRelatedRequest));
     }
+
+    @PostMapping("/search/page/vo")
+    public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                                 HttpServletRequest request) {
+        long size = questionQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
+        //如果出错了就查数据库
+        try{
+            Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
+            return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+        }catch (Exception e){
+            // 查询数据库
+            Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
+            // 获取封装类
+            return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+        }
+
+    }
+
     // endregion
 }

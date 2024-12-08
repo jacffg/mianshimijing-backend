@@ -73,10 +73,20 @@ public interface QuestionService extends IService<Question> {
     QuestionVO getQuestionByAi(Long questionId );
     /**
      * 获取相关题目
-
      * @return
      */
     List<QuestionVO> getRelatesQuesions(QuestionRelatedRequest questionRelatedRequest);
 
+    /**
+     * 获取最大题目号
+     * @return
+     */
     public Long getMaxQuestionNum() ;
+
+    /**
+     * 从es查询题目
+     * @return
+     */
+    public Page<Question> searchFromEs(QuestionQueryRequest questionQueryRequest) ;
+
 }
