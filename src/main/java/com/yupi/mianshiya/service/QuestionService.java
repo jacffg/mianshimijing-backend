@@ -63,6 +63,13 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest);
+    /**
+     * 批量删除题目
+     *
+     * @param questionIdList
+     */
+
+    void batchDeleteQuestions(List<Long> questionIdList);
 
     /**
      * Ai生成推荐答案

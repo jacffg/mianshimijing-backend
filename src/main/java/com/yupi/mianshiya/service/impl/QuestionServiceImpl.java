@@ -44,6 +44,7 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -284,6 +285,35 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         Page<Question> questionPage = this.page(new Page<>(current, size), queryWrapper);
         return questionPage;
     }
+
+    /**
+     * 批量删除题目
+     *
+     * @param questionIdList
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchDeleteQuestions(List<Long> questionIdList) {
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIdList), ErrorCode.PARAMS_ERROR, "要删除的题目列表不能为空");
+        //合法的id(题目存在)
+        LambdaQueryWrapper<Question> queryWrapper = Wrappers.lambdaQuery(Question.class)
+                .select(Question::getId)
+                .in(Question::getId, questionIdList);
+        // 合法的题目 id 列表
+        List<Long> validQuestionIdList = this.listObjs(queryWrapper, obj -> (Long) obj);
+        ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionIdList), ErrorCode.PARAMS_ERROR, "合法的题目 id 列表为空");
+        for (Long questionId : validQuestionIdList) {
+            boolean result = this.removeById(questionId);
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "删除题目失败");
+            // 移除题目题库关系
+            // 构造查询
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                    .eq(QuestionBankQuestion::getQuestionId, questionId);
+            result = questionBankQuestionService.remove(lambdaQueryWrapper);
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "删除题目题库关联失败");
+        }
+    }
+
 
     @Override
     public QuestionVO getQuestionByAi(Long questionId) {

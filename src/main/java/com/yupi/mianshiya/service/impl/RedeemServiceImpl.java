@@ -34,9 +34,6 @@ import java.util.stream.Collectors;
 
 /**
  * 兑换服务实现
- *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://www.code-nav.cn">编程导航学习圈</a>
  */
 @Service
 @Slf4j
@@ -170,7 +167,7 @@ public class RedeemServiceImpl extends ServiceImpl<RedeemMapper, Redeem> impleme
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class )
     public Boolean exchangeCode(ExchangeRequest exchangeRequest, HttpServletRequest request) {
         if (exchangeRequest == null||exchangeRequest.getCode().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
