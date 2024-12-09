@@ -1,6 +1,7 @@
 package com.yupi.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -12,9 +13,11 @@ import com.yupi.mianshiya.common.ErrorCode;
 import com.yupi.mianshiya.constant.CommonConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
+import com.yupi.mianshiya.listener.QuestionDataListener;
 import com.yupi.mianshiya.manager.AiManager;
 import com.yupi.mianshiya.mapper.QuestionMapper;
 import com.yupi.mianshiya.model.dto.question.QuestionEsDTO;
+import com.yupi.mianshiya.model.dto.question.QuestionImportDTO;
 import com.yupi.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.yupi.mianshiya.model.dto.question.QuestionRelatedRequest;
 import com.yupi.mianshiya.model.entity.Question;
@@ -37,6 +40,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.core.ElasticsearchRestTemplate;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -45,6 +49,7 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -311,6 +316,46 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                     .eq(QuestionBankQuestion::getQuestionId, questionId);
             result = questionBankQuestionService.remove(lambdaQueryWrapper);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "删除题目题库关联失败");
+        }
+    }
+
+    /**
+     * 从 Excel 文件中导入题目
+     *
+     * @param file      Excel 文件
+     * @param loginUser
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void importQuestions(MultipartFile file, User loginUser)  {
+        // 使用 EasyExcel 读取数据
+        try {
+            Long maxQuestionNum = this.getMaxQuestionNum();
+            EasyExcel.read(file.getInputStream(), QuestionImportDTO.class, new QuestionDataListener( this,loginUser, maxQuestionNum))
+                    .sheet()
+                    .doRead();
+        }catch (Exception e){
+            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"导入失败");
+        }
+    }
+
+    /**
+     * 批量添加题目到题库（事务，仅供内部调用）
+     *
+     * @param questions
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAddQuestionsInner(List<Question> questions) {
+        try {
+            boolean result = this.saveBatch(questions);
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "添加题目失败");
+        } catch (DataAccessException e) {
+            log.error("数据库连接问题、事务问题等导致操作失败, 错误信息: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "数据库操作失败");
+        } catch (Exception e) {
+            // 捕获其他异常，做通用处理
+            log.error("添加题目时发生未知错误，错误信息: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "添加题目失败");
         }
     }
 

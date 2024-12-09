@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -285,6 +286,26 @@ public class QuestionController {
         questionService.batchDeleteQuestions(questionBatchDeleteRequest.getQuestionIdList());
         return ResultUtils.success(true);
     }
+    /**
+     * 批量导入题目
+     *
+     * @param file Excel 文件
+     * @return 导入结果
+     */
+    @PostMapping("/import")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<String> importQuestions(@RequestParam("file") MultipartFile file,HttpServletRequest request) {
+        if (file.isEmpty()) {
+            throw  new BusinessException(ErrorCode.PARAMS_ERROR,"文件不能为空");
+        }
+        try {
+            User loginUser = userService.getLoginUser(request);
+            questionService.importQuestions(file,loginUser);
+           return  ResultUtils.success("导入成功");
+        } catch (Exception e) {
+            throw  new BusinessException(ErrorCode.OPERATION_ERROR,"导入失败");
+        }
+    }
 
     /**
      * 获取热门标签
@@ -405,7 +426,6 @@ public class QuestionController {
             // 获取封装类
             return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
         }
-
     }
 
     // endregion

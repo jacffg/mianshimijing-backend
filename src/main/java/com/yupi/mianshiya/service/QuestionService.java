@@ -3,12 +3,13 @@ package com.yupi.mianshiya.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.yupi.mianshiya.mapper.QuestionMapper;
 import com.yupi.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.yupi.mianshiya.model.dto.question.QuestionRelatedRequest;
 import com.yupi.mianshiya.model.entity.Question;
+import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.QuestionVO;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -70,6 +71,20 @@ public interface QuestionService extends IService<Question> {
      */
 
     void batchDeleteQuestions(List<Long> questionIdList);
+    /**
+     * 从 Excel 文件中导入题目
+     *
+     * @param file      Excel 文件
+     * @param loginUser
+     */
+    public void importQuestions(MultipartFile file, User loginUser);
+    /**
+     * 批量添加题目到题库（事务，仅供内部调用）
+     *
+     * @param questions
+     */
+    @Transactional(rollbackFor = Exception.class)
+    void batchAddQuestionsInner(List<Question> questions);
 
     /**
      * Ai生成推荐答案
