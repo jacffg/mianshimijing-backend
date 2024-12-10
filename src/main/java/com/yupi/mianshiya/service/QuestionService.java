@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -77,7 +78,7 @@ public interface QuestionService extends IService<Question> {
      * @param file      Excel 文件
      * @param loginUser
      */
-    public void importQuestions(MultipartFile file, User loginUser);
+    public void importQuestions(File file, User loginUser);
     /**
      * 批量添加题目到题库（事务，仅供内部调用）
      *

@@ -13,4 +13,5 @@ public interface FileConstant {
      * todo 需替换配置
      */
     String COS_HOST = "https://yupi.icu";
+    String GLOBAL_TASK_DIR_NAME = "task";
 }

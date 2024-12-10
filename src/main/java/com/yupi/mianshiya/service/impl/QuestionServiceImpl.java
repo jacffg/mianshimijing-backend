@@ -2,6 +2,7 @@ package com.yupi.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -49,10 +50,13 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -325,16 +329,28 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
      * @param file      Excel 文件
      * @param loginUser
      */
-    @Transactional(rollbackFor = Exception.class)
-    public void importQuestions(MultipartFile file, User loginUser)  {
-        // 使用 EasyExcel 读取数据
+    public void importQuestions(File file, User loginUser) {
         try {
+            // 获取当前最大题目编号
             Long maxQuestionNum = this.getMaxQuestionNum();
-            EasyExcel.read(file.getInputStream(), QuestionImportDTO.class, new QuestionDataListener( this,loginUser, maxQuestionNum))
-                    .sheet()
-                    .doRead();
-        }catch (Exception e){
-            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"导入失败");
+            // 使用 EasyExcel 读取数据
+            EasyExcel.read(
+                    new FileInputStream(file), // 确保 FileInputStream 正确打开文件
+                    QuestionImportDTO.class,
+                    new QuestionDataListener(this, loginUser, maxQuestionNum)
+            ).sheet().doRead();
+        } catch (FileNotFoundException e) {
+            // 文件找不到
+            log.error("文件找不到，路径：" + file.getAbsolutePath(), e);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件找不到，请检查文件路径");
+        } catch (ExcelAnalysisException e) {
+            // Excel 解析异常
+            log.error("Excel 解析失败，可能是格式问题，文件：" + file.getAbsolutePath(), e);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件解析失败，请检查 Excel 格式");
+        } catch (Exception e) {
+            // 未知异常
+            log.error("未知异常发生，文件：" + file.getAbsolutePath(), e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "导入失败：" + e.getMessage());
         }
     }
 

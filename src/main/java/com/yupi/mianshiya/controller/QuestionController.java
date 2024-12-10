@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.controller;
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -18,20 +19,24 @@ import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.enums.UserRoleEnum;
 import com.yupi.mianshiya.model.vo.HotTagsVO;
 import com.yupi.mianshiya.model.vo.QuestionVO;
+import com.yupi.mianshiya.rabbitmq.MyMessageProducer;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.yupi.mianshiya.constant.FileConstant.GLOBAL_TASK_DIR_NAME;
 import static com.yupi.mianshiya.constant.RedisConstant.getUserBrowseQuestionKeyPrefix;
 
 /**
@@ -53,6 +58,8 @@ public class QuestionController {
 
     @Resource
     private RedissonClient redissonClient;
+    @Resource
+    private MyMessageProducer myMessageProducer;
 
     // region 增删改查
 
@@ -81,7 +88,7 @@ public class QuestionController {
 
         // 查询最大的 questionNum
         Long maxQuestionNum = questionService.getMaxQuestionNum();
-        question.setQuestionNum(maxQuestionNum+1);
+        question.setQuestionNum(maxQuestionNum + 1);
 
         question.setUserId(loginUser.getId());
         // 写入数据库
@@ -279,6 +286,7 @@ public class QuestionController {
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
+
     @PostMapping("/delete/batch")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> batchDeleteQuestions(@RequestBody QuestionBatchDeleteRequest questionBatchDeleteRequest) {
@@ -286,6 +294,7 @@ public class QuestionController {
         questionService.batchDeleteQuestions(questionBatchDeleteRequest.getQuestionIdList());
         return ResultUtils.success(true);
     }
+
     /**
      * 批量导入题目
      *
@@ -294,16 +303,37 @@ public class QuestionController {
      */
     @PostMapping("/import")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<String> importQuestions(@RequestParam("file") MultipartFile file,HttpServletRequest request) {
+    public BaseResponse<String> importQuestions(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         if (file.isEmpty()) {
-            throw  new BusinessException(ErrorCode.PARAMS_ERROR,"文件不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件不能为空");
         }
         try {
             User loginUser = userService.getLoginUser(request);
-            questionService.importQuestions(file,loginUser);
-           return  ResultUtils.success("导入成功");
+            // 生成任务 ID
+            String taskId = UUID.randomUUID().toString();
+            // 获取工作目录（适合运行时写入）
+            String userDir = System.getProperty("user.dir");
+            String globalTaskPathName = userDir + File.separator + GLOBAL_TASK_DIR_NAME;
+            // 判断全局代码目录是否存在，没有则新建
+            try {
+                if (!FileUtil.exist(globalTaskPathName)) {
+                    FileUtil.mkdir(globalTaskPathName);
+                }
+            } catch (Exception e) {
+                throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"创建目录失败");
+            }
+            // 保存文件到指定目录，命名为 taskId.xls
+            File savedFile = new File(globalTaskPathName, taskId + ".xls");
+            file.transferTo(savedFile);
+            QuestionImportTask questionImportTask = new QuestionImportTask();
+            questionImportTask.setTaskId(taskId);
+            questionImportTask.setUser(loginUser);
+            // 发送消息
+            myMessageProducer.sendQuestioTaskMessage("task_exchange", "my_routingKey", questionImportTask);
+            return ResultUtils.success("任务创建成功任务id为"+taskId);
+
         } catch (Exception e) {
-            throw  new BusinessException(ErrorCode.OPERATION_ERROR,"导入失败");
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "导入失败");
         }
     }
 
@@ -330,10 +360,10 @@ public class QuestionController {
 
             List<String> tags = JSONUtil.toList(question.getTags(), String.class);
             for (String tag : tags) {
-                if(mapViewNUm.get(tag)==null){
-                    mapViewNUm.put(tag,question.getViewNum());
-                }else {
-                    mapViewNUm.put(tag,mapViewNUm.get(tag)+question.getViewNum());
+                if (mapViewNUm.get(tag) == null) {
+                    mapViewNUm.put(tag, question.getViewNum());
+                } else {
+                    mapViewNUm.put(tag, mapViewNUm.get(tag) + question.getViewNum());
                 }
                 if (map.get(tag) == null) {
                     map.put(tag, 1L);
@@ -343,7 +373,7 @@ public class QuestionController {
             }
         });
         for (String s : map.keySet()) {
-            map.put(s, (long) (map.get(s)*mapViewNUm.get(s)*0.001));
+            map.put(s, (long) (map.get(s) * mapViewNUm.get(s) * 0.001));
         }
 
         // 按 value 排序并将 key 放入列表中(前十)
@@ -354,8 +384,8 @@ public class QuestionController {
                 .map(Map.Entry::getKey)                // 提取 key
                 .collect(Collectors.toList());         // 收集到 List 中
         List<HotTagsVO> res = new ArrayList<>();
-        hotTags.forEach(tag->{
-            res.add(new HotTagsVO(map.get(tag),tag));
+        hotTags.forEach(tag -> {
+            res.add(new HotTagsVO(map.get(tag), tag));
         });
         return ResultUtils.success(res);
     }
@@ -391,22 +421,24 @@ public class QuestionController {
     @PostMapping("/ai_generate")
     public BaseResponse<QuestionVO> aiGenerateQuestion(Long questionId, HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
-        if (loginUser==null){
-            throw  new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         //仅限管理员和vip调用
-        if (!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE) && !loginUser.getUserRole().equals(UserConstant.VIP_ROLE)){
-            throw  new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        if (!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE) && !loginUser.getUserRole().equals(UserConstant.VIP_ROLE)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
         return ResultUtils.success(questionService.getQuestionByAi(questionId));
     }
+
     /**
      * 获取相关题目
+     *
      * @param request
      * @return
      */
     @PostMapping("/getRelatedQuestions")
-    public BaseResponse<List<QuestionVO>> getRelatedQuestions(@RequestBody  QuestionRelatedRequest questionRelatedRequest, HttpServletRequest request) {
+    public BaseResponse<List<QuestionVO>> getRelatedQuestions(@RequestBody QuestionRelatedRequest questionRelatedRequest, HttpServletRequest request) {
         return ResultUtils.success(questionService.getRelatesQuesions(questionRelatedRequest));
     }
 
@@ -417,10 +449,10 @@ public class QuestionController {
         // 限制爬虫
         ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
         //如果出错了就查数据库
-        try{
+        try {
             Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
             return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
-        }catch (Exception e){
+        } catch (Exception e) {
             // 查询数据库
             Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
             // 获取封装类
