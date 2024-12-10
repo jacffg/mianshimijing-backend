@@ -23,8 +23,11 @@ import com.yupi.mianshiya.rabbitmq.MyMessageProducer;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.yupi.mianshiya.constant.FileConstant.GLOBAL_TASK_DIR_NAME;
-import static com.yupi.mianshiya.constant.RedisConstant.getUserBrowseQuestionKeyPrefix;
+import static com.yupi.mianshiya.constant.RedisConstant.*;
 
 /**
  * 题目接口
@@ -60,6 +63,8 @@ public class QuestionController {
     private RedissonClient redissonClient;
     @Resource
     private MyMessageProducer myMessageProducer;
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
     // region 增删改查
 
@@ -320,7 +325,7 @@ public class QuestionController {
                     FileUtil.mkdir(globalTaskPathName);
                 }
             } catch (Exception e) {
-                throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"创建目录失败");
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建目录失败");
             }
             // 保存文件到指定目录，命名为 taskId.xls
             File savedFile = new File(globalTaskPathName, taskId + ".xls");
@@ -330,7 +335,7 @@ public class QuestionController {
             questionImportTask.setUser(loginUser);
             // 发送消息
             myMessageProducer.sendQuestioTaskMessage("task_exchange", "my_routingKey", questionImportTask);
-            return ResultUtils.success("任务创建成功任务id为"+taskId);
+            return ResultUtils.success("任务创建成功任务id为" + taskId);
 
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "导入失败");
@@ -346,52 +351,83 @@ public class QuestionController {
     @GetMapping("/hot/tags")
     public BaseResponse<List<HotTagsVO>> getHotTags(HttpServletRequest request) {
 
-        //查询浏览数前十的题目
-        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.orderByDesc(Question::getViewNum)
-                .last("LIMIT 10");  // 添加 LIMIT 子句，限制前 10 条
-        List<Question> questions = questionService.list(queryWrapper);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        // 缓存中直接读缓存
+        List<HotTagsVO> hottags = (List<HotTagsVO>) valueOperations.get(QUESTION_HOT_TAGS);
+        if (hottags != null) {
+            return ResultUtils.success(hottags);
+        }
+        // 定义锁
+        RLock lock = redissonClient.getLock(HOT_LOCK + QUESTION_HOT_TAGS);
+        try {
+            // 竞争锁
+            boolean hasLock = lock.tryLock(3, 15, TimeUnit.SECONDS);
+            // 没抢到锁，强行返回
+            if (!hasLock) {
+                return null;
+            }
+            // 抢到锁了，执行后续业务逻辑
+            //查询浏览数前十的题目
+            LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.orderByDesc(Question::getViewNum)
+                    .last("LIMIT 10");  // 添加 LIMIT 子句，限制前 10 条
+            List<Question> questions = questionService.list(queryWrapper);
 
-        //获取所有的标签
-        Map<String, Long> map = new HashMap<>();
-        //题目和标签
-        Map<String, Long> mapViewNUm = new HashMap<>();
-        questions.stream().forEach(question -> {
-
-            List<String> tags = JSONUtil.toList(question.getTags(), String.class);
-            for (String tag : tags) {
-                if (mapViewNUm.get(tag) == null) {
-                    mapViewNUm.put(tag, question.getViewNum());
-                } else {
-                    mapViewNUm.put(tag, mapViewNUm.get(tag) + question.getViewNum());
+            //获取所有的标签
+            Map<String, Long> map = new HashMap<>();
+            //题目和标签
+            Map<String, Long> mapViewNUm = new HashMap<>();
+            questions.stream().forEach(question -> {
+                List<String> tags = JSONUtil.toList(question.getTags(), String.class);
+                for (String tag : tags) {
+                    if (mapViewNUm.get(tag) == null) {
+                        mapViewNUm.put(tag, question.getViewNum());
+                    } else {
+                        mapViewNUm.put(tag, mapViewNUm.get(tag) + question.getViewNum());
+                    }
+                    if (map.get(tag) == null) {
+                        map.put(tag, 1L);
+                    } else {
+                        map.put(tag, map.get(tag) + 1);
+                    }
                 }
-                if (map.get(tag) == null) {
-                    map.put(tag, 1L);
-                } else {
-                    map.put(tag, map.get(tag) + 1);
+            });
+            for (String s : map.keySet()) {
+                map.put(s, (long) (map.get(s) * mapViewNUm.get(s) * 0.001));
+            }
+
+            // 按 value 排序并将 key 放入列表中(前十)
+            List<String> hotTags = map.entrySet()
+                    .stream()
+                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))  // 按 value 降序排序
+                    .limit(10)                                                     // 限制前 10 个
+                    .map(Map.Entry::getKey)                // 提取 key
+                    .collect(Collectors.toList());         // 收集到 List 中
+            List<HotTagsVO> res = new ArrayList<>();
+            hotTags.forEach(tag -> {
+                res.add(new HotTagsVO(map.get(tag), tag));
+            });
+            if (res.isEmpty()) {
+                log.warn("No hot tags found, skipping cache.");
+                return ResultUtils.success(res);
+            }
+            //写入缓存30分钟
+            valueOperations.set(QUESTION_HOT_TAGS, res, 30, TimeUnit.MINUTES);
+            return ResultUtils.success(res);
+        } catch (Exception e) {
+            log.error("抢锁失败");
+            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"系统繁忙");
+        } finally {
+            if (lock != null && lock.isLocked()) {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
                 }
             }
-        });
-        for (String s : map.keySet()) {
-            map.put(s, (long) (map.get(s) * mapViewNUm.get(s) * 0.001));
         }
-
-        // 按 value 排序并将 key 放入列表中(前十)
-        List<String> hotTags = map.entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))  // 按 value 降序排序
-                .limit(10)                                                     // 限制前 10 个
-                .map(Map.Entry::getKey)                // 提取 key
-                .collect(Collectors.toList());         // 收集到 List 中
-        List<HotTagsVO> res = new ArrayList<>();
-        hotTags.forEach(tag -> {
-            res.add(new HotTagsVO(map.get(tag), tag));
-        });
-        return ResultUtils.success(res);
     }
 
     /**
-     * 获取热门标签
+     * 获取热门题目
      *
      * @param request
      * @return
@@ -399,17 +435,49 @@ public class QuestionController {
     @GetMapping("/hot/question")
     public BaseResponse<List<QuestionVO>> getHotQuestions(HttpServletRequest request) {
 
-        //查询浏览数前十的题目
-        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.orderByDesc(Question::getViewNum)
-                .last("LIMIT 10");  // 添加 LIMIT 子句，限制前 10 条
-        List<Question> questions = questionService.list(queryWrapper);
-        ArrayList<QuestionVO> res = new ArrayList<>();
-        questions.stream().forEach(question -> {
-            QuestionVO questionVO = QuestionVO.objToVo(question);
-            res.add(questionVO);
-        });
-        return ResultUtils.success(res);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        // 缓存中直接读缓存
+        List<QuestionVO> hotquestions = (List<QuestionVO>) valueOperations.get(QUESTION_HOT_QUESTIONS);
+        if (hotquestions != null) {
+            return ResultUtils.success(hotquestions);
+        }
+        // 定义锁
+        RLock lock = redissonClient.getLock(HOT_LOCK + QUESTION_HOT_TAGS);
+        try {
+            // 竞争锁
+            boolean res = lock.tryLock(3, 15, TimeUnit.SECONDS);
+            // 没抢到锁，强行返回
+            if (!res) {
+                return null;
+            }
+            // 抢到锁了，执行后续业务逻辑
+            //查询浏览数前十的题目
+            LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.orderByDesc(Question::getViewNum)
+                    .last("LIMIT 10");  // 添加 LIMIT 子句，限制前 10 条
+            List<Question> questions = questionService.list(queryWrapper);
+            ArrayList<QuestionVO> hotQuestions = new ArrayList<>();
+            questions.forEach(question -> {
+                QuestionVO questionVO = QuestionVO.objToVo(question);
+                hotQuestions.add(questionVO);
+            });
+            if (hotQuestions.isEmpty()) {
+                log.warn("No hot questions found, skipping cache.");
+                return ResultUtils.success(hotQuestions);
+            }
+            //写入缓存30分钟
+            valueOperations.set(QUESTION_HOT_QUESTIONS, hotQuestions, 30, TimeUnit.MINUTES);
+            return ResultUtils.success(hotQuestions);
+        } catch (Exception e) {
+            log.error("抢锁失败");
+            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"系统繁忙");
+        } finally {
+            if (lock != null && lock.isLocked()) {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+        }
     }
 
     /**

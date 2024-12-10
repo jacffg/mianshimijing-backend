@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.yupi.mianshiya.common.ErrorCode;
+import com.yupi.mianshiya.common.ResultUtils;
 import com.yupi.mianshiya.constant.CommonConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
@@ -26,6 +27,7 @@ import com.yupi.mianshiya.model.entity.QuestionBankQuestion;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.QuestionVO;
 import com.yupi.mianshiya.model.vo.UserVO;
+import com.yupi.mianshiya.rabbitmq.MyMessageProducer;
 import com.yupi.mianshiya.service.QuestionBankQuestionService;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
@@ -41,6 +43,8 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.core.ElasticsearchRestTemplate;
@@ -48,6 +52,8 @@ import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +64,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.yupi.mianshiya.constant.RedisConstant.*;
+import static com.yupi.mianshiya.constant.RedisConstant.QUESTION_HOT_QUESTIONS;
 
 /**
  * 题目服务实现
@@ -82,6 +92,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     private QuestionMapper questionMapper;
     @Resource
     private ElasticsearchRestTemplate elasticsearchRestTemplate;
+    @Resource
+    private RedissonClient redissonClient;
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
     /**
      * AI 评分系统消息
      */
@@ -378,25 +392,53 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Override
     public QuestionVO getQuestionByAi(Long questionId) {
-
         if (questionId == null || questionId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        //获取题目
-        Question question = this.getById(questionId);
-        if (question == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        String key = getQuestionAigeneratePrefix(questionId);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        // 缓存中直接读缓存
+        QuestionVO aiQuestin = (QuestionVO) valueOperations.get(key);
+        if (aiQuestin != null) {
+            return aiQuestin;
         }
-
-        //生成用户信息
-        String userMessage = getGenerateUserMessage(question);
-        // AI 生成
-        String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
-        //提取答案
-        String recomdAnswer = AiUtils.extractAnswersAsString(result);
-        question.setAnswer(recomdAnswer);
-        //转换
-        return QuestionVO.objToVo(question);
+        // 定义锁
+        RLock lock = redissonClient.getLock(QUESTION_AI_LOCK + key);
+        try {
+            // 竞争锁
+            boolean hasLock = lock.tryLock(3, 15, TimeUnit.SECONDS);
+            // 没抢到锁，强行返回
+            if (!hasLock) {
+                return null;
+            }
+            // 抢到锁了，执行后续业务逻辑
+            //获取题目
+            Question question = this.getById(questionId);
+            if (question == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+            }
+            //生成用户信息
+            String userMessage = getGenerateUserMessage(question);
+            // AI 生成
+            String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
+            //提取答案
+            String recomdAnswer = AiUtils.extractAnswersAsString(result);
+            question.setAnswer(recomdAnswer);
+            //转换
+            QuestionVO questionVO = QuestionVO.objToVo(question);
+            //写入缓存一小时
+            valueOperations.set(key, questionVO, 1, TimeUnit.HOURS);
+            return questionVO;
+        } catch (Exception e) {
+            log.error("抢锁失败");
+            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"系统繁忙");
+        } finally {
+            if (lock != null && lock.isLocked()) {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+        }
     }
 
     @Override
