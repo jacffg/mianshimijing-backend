@@ -93,6 +93,16 @@ mybatis-plus:
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名
       logic-delete-value: 1 # 逻辑已删除值（默认为 1）
       logic-not-delete-value: 0 # 逻辑未删除值（默认为 0）
+# 配置中心
+nacos:
+  config:
+    server-addr: localhost:8848  # nacos 地址
+    bootstrap:
+      enable: true  # 预加载
+    data-id: mianshiyaBlackList # 控制台填写的 Data ID
+    group: DEFAULT_GROUP # 控制台填写的 group
+    type: yaml  # 选择的文件格式
+    auto-refresh: true # 开启自动刷新
 # 微信相关
 wx:
   # 微信公众平台
