@@ -16,8 +16,7 @@ import java.util.stream.Collectors;
 /**
  * 全量同步题目到 es
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
+ * @author <a href="https://github.com/jacffg">码羊</a>
  */
 // todo 取消注释开启任务
 //@Component
