@@ -265,6 +265,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                 user = userIdUserListMap.get(userId).get(0);
             }
             questionVO.setUser(userService.getUserVO(user));
+            questionVO.setAnswer("");
         });
         // endregion
 

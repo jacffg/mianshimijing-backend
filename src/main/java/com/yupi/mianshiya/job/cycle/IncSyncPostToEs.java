@@ -11,6 +11,7 @@ import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import cn.hutool.core.collection.CollUtil;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 /**
  * 增量同步帖子到 es
@@ -18,7 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
  * @author <a href="https://github.com/jacffg">码羊</a>
  */
 // todo 取消注释开启任务
-//@Component
+@Component
 @Slf4j
 public class IncSyncPostToEs {
 

@@ -7,6 +7,7 @@ import com.yupi.mianshiya.model.dto.question.QuestionEsDTO;
 import com.yupi.mianshiya.model.entity.Question;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.Date;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
  * @author <a href="https://github.com/jacffg">码羊</a>
  */
 // todo 取消注释开启任务
-//@Component
+@Component
 @Slf4j
 public class IncSyncQuestionToEs {
 

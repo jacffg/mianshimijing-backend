@@ -15,7 +15,7 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
-//@Document(indexName = "question")
+@Document(indexName = "question")
 @Data
 public class QuestionEsDTO implements Serializable {
 

@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.exception;
 
+import cn.dev33.satoken.exception.DisableServiceException;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.exception.NotRoleException;
 import com.yupi.mianshiya.common.BaseResponse;
@@ -39,5 +40,10 @@ public class GlobalExceptionHandler {
     public BaseResponse<?> notLoginExceptionHandler(RuntimeException e) {
         log.error("NotLoginException", e);
         return ResultUtils.error(ErrorCode.NOT_LOGIN_ERROR, "未登录");
+    }
+    @ExceptionHandler(DisableServiceException.class)
+    public BaseResponse<?> BanExceptionHandler(RuntimeException e) {
+        log.error("BanExceptionHandler", e);
+        return ResultUtils.error(ErrorCode.FORBIDDEN_ERROR, "此账号已被封禁");
     }
 }

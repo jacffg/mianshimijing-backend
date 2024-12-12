@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.mianshiya.annotation.AuthCheck;
 import com.yupi.mianshiya.common.BaseResponse;
@@ -11,12 +12,7 @@ import com.yupi.mianshiya.constant.RedisConstant;
 import com.yupi.mianshiya.constant.UserConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
-import com.yupi.mianshiya.model.dto.user.UserAddRequest;
-import com.yupi.mianshiya.model.dto.user.UserLoginRequest;
-import com.yupi.mianshiya.model.dto.user.UserQueryRequest;
-import com.yupi.mianshiya.model.dto.user.UserRegisterRequest;
-import com.yupi.mianshiya.model.dto.user.UserUpdateMyRequest;
-import com.yupi.mianshiya.model.dto.user.UserUpdateRequest;
+import com.yupi.mianshiya.model.dto.user.*;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.LoginUserVO;
 import com.yupi.mianshiya.model.vo.UserVO;
@@ -351,7 +347,47 @@ public class UserController {
         return ResultUtils.success(res);
     }
 
-
-    
+    /**
+     * 用户禁止登录
+     *
+     * @param userBanRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/ban")
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> userBan(@RequestBody UserBanRequest userBanRequest, HttpServletRequest request) {
+        if (userBanRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //检测是否被封禁
+        boolean flag =  StpUtil.isDisable(userBanRequest.getUserId());
+        if (flag) {
+            StpUtil.untieDisable(userBanRequest.getUserId());
+        }
+        StpUtil.disable(userBanRequest.getUserId(), userBanRequest.getBanTime()*86400);
+        return ResultUtils.success(true);
+    }
+    /**
+     * 用户解封
+     *
+     * @param userId
+     * @param request
+     * @return
+     */
+    @PostMapping("/unban")
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> userUnBan(long userId , HttpServletRequest request) {
+        if (userId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //检测是否被封禁
+        boolean flag =  StpUtil.isDisable(userId);
+        if (!flag) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户未被封禁");
+        }
+        StpUtil.untieDisable(userId);
+        return ResultUtils.success(true);
+    }
 
 }

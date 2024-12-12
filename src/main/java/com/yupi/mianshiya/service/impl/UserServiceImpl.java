@@ -115,6 +115,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 3. 记录用户的登录态
 //        request.getSession().setAttribute(USER_LOGIN_STATE, user);
         // 使用 Sa-Token 登录，并指定设备，同端登录互斥
+        // 校验指定账号是否已被封禁，如果被封禁则抛出异常 `DisableServiceException`
+        StpUtil.checkDisable(user.getId());
         StpUtil.login(user.getId(), DeviceUtils.getRequestDevice(request));
         StpUtil.getSession().set(USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);

@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.csp.sentinel.Entry;
@@ -8,6 +9,7 @@ import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.Tracer;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
+import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -16,9 +18,12 @@ import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.DeleteRequest;
 import com.yupi.mianshiya.common.ErrorCode;
 import com.yupi.mianshiya.common.ResultUtils;
+import com.yupi.mianshiya.config.MailConfig;
 import com.yupi.mianshiya.constant.UserConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
+import com.yupi.mianshiya.manager.CounterManager;
+import com.yupi.mianshiya.model.dto.mail.Message;
 import com.yupi.mianshiya.model.dto.question.*;
 import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.User;
@@ -73,7 +78,16 @@ public class QuestionController {
     private MyMessageProducer myMessageProducer;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+    @Resource
+    private CounterManager counterManager;
+    @Resource
+    private MailConfig mailConfig;
+    @NacosValue(value = "${warn.count:10}", autoRefreshed = true)
+    private int WARN_COUNT;
+    @NacosValue(value = "${ban.count:20}", autoRefreshed = true)
+    private int BAN_COUNT;
 
+    private static final String toMail = "13517950816@163.com";
     // region 增删改查
 
     /**
@@ -179,11 +193,13 @@ public class QuestionController {
      */
     @GetMapping("/get/vo")
     public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
+
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        crawlerDetect(loginUser.getId());
         // 查询数据库
         Question question = questionService.getById(id);
         ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
-
         // 获取用户的 IP 地址
         String userIp = request.getRemoteAddr();
 
@@ -202,6 +218,42 @@ public class QuestionController {
         return ResultUtils.success(questionService.getQuestionVO(question, request));
     }
 
+
+    /**
+     * 检测爬虫
+     *
+     * @param loginUserId
+     */
+    private void crawlerDetect(long loginUserId) {
+        // 拼接访问 key
+        String key = String.format("user:access:%s", loginUserId);
+        // 统计一分钟内访问次数，180 秒过期
+        long count = counterManager.incrAndGetCounter(key, 1, TimeUnit.MINUTES, 180);
+        // 是否封号
+        if (count > BAN_COUNT) {
+            // 踢下线
+            StpUtil.kickout(loginUserId);
+            // 封号七天
+            // 封禁指定账号
+            StpUtil.disable(loginUserId, 86400*7);
+
+//            User updateUser = new User();
+//            updateUser.setId(loginUserId);
+//            updateUser.setUserRole("ban");
+//            userService.updateById(updateUser);
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "访问次数过多，已被封号七天");
+        }
+        // 是否告警
+        if (count == WARN_COUNT) {
+            Message message = new Message();
+            message.setToEmail(toMail);
+            message.setSubject("用户访问次数告警");
+            message.setContent("用户 " + loginUserId + " 访问次数过多，请及时处理");
+            mailConfig.sendEmail(message);
+            // 可以改为向管理员发送邮件通知
+            throw new BusinessException(110, "警告：访问太频繁");
+        }
+    }
 
     /**
      * 分页获取题目列表（仅管理员可用）
