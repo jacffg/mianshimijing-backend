@@ -19,6 +19,7 @@ import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckRole;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -49,7 +50,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/add")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addRedeem(@RequestBody RedeemAddRequest redeemAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(redeemAddRequest == null, ErrorCode.PARAMS_ERROR);
         Redeem redeem = new Redeem();
@@ -79,7 +80,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/delete")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteRedeem(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -102,7 +103,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateRedeem(@RequestBody RedeemUpdateRequest redeemUpdateRequest) {
         if (redeemUpdateRequest == null || redeemUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -129,7 +130,7 @@ public class RedeemController {
      * @return
      */
     @GetMapping("/get/vo")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<RedeemVO> getRedeemVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         // 查询数据库
@@ -147,7 +148,7 @@ public class RedeemController {
      */
     @PostMapping("/list/page")
 
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<Redeem>> listRedeemByPage(@RequestBody RedeemQueryRequest redeemQueryRequest) {
         long current = redeemQueryRequest.getCurrent();
         long size = redeemQueryRequest.getPageSize();
@@ -166,7 +167,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/list/page/vo")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<RedeemVO>> listRedeemVOByPage(@RequestBody RedeemQueryRequest redeemQueryRequest,
                                                                HttpServletRequest request) {
         long current = redeemQueryRequest.getCurrent();
@@ -188,7 +189,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/my/list/page/vo")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<RedeemVO>> listMyRedeemVOByPage(@RequestBody RedeemQueryRequest redeemQueryRequest,
                                                                  HttpServletRequest request) {
         ThrowUtils.throwIf(redeemQueryRequest == null, ErrorCode.PARAMS_ERROR);
@@ -214,7 +215,7 @@ public class RedeemController {
      * @return
      */
     @PostMapping("/edit")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> editRedeem(@RequestBody RedeemEditRequest redeemEditRequest, HttpServletRequest request) {
         if (redeemEditRequest == null || redeemEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);

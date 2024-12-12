@@ -24,6 +24,7 @@ import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckRole;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -121,7 +122,7 @@ public class QuestionFavourController {
      * @param questionFavourQueryRequest
      * @param request
      */
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     @PostMapping("/list/page")
     public BaseResponse<Page<Question>> listFavourQuestionByPage(@RequestBody QuestionFavourQueryRequest questionFavourQueryRequest,
                                                                    HttpServletRequest request) {

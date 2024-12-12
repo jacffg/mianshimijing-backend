@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckRole;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -37,7 +38,7 @@ public class StatisticController {
      */
 
     @GetMapping("/question/viewNum_count")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<List<QuestionViewCountDTO>> getQuestionViewNumStatict(@RequestParam(required = false) Integer num, HttpServletRequest request) {
         // 如果 num 为空，则默认设置为 10
         if (num == null || num <= 0) {
@@ -62,7 +63,7 @@ public class StatisticController {
      * 统计收藏数题目
      */
     @GetMapping("/question/favour_count")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<List<QuestionFavourCountDTO>> getQuestionFavourStatict(@RequestParam(required = false) Integer num, HttpServletRequest request) {
         // 如果 num 为空，则默认设置为 10
         if (num == null || num <= 0) {

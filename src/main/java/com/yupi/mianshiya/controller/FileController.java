@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.io.FileUtil;
 import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.ErrorCode;

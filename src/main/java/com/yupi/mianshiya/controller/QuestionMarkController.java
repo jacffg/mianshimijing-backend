@@ -23,6 +23,7 @@ import com.yupi.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckRole;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -105,7 +106,7 @@ public class QuestionMarkController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateQuestionMark(@RequestBody QuestionMarkUpdateRequest questionMarkUpdateRequest) {
         if (questionMarkUpdateRequest == null || questionMarkUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -148,7 +149,7 @@ public class QuestionMarkController {
      * @return
      */
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<QuestionMark>> listQuestionMarkByPage(@RequestBody QuestionMarkQueryRequest questionMarkQueryRequest) {
         long current = questionMarkQueryRequest.getCurrent();
         long size = questionMarkQueryRequest.getPageSize();
