@@ -17,22 +17,22 @@ import cn.hutool.extra.mail.MailUtil;
 @Component
 public class MailConfig {
 
-    @NacosValue(value = "${mail.host}", autoRefreshed = true)
+    @NacosValue(value = "${mail.host:smtp.163.com}", autoRefreshed = true)
     private String host;
 
-    @NacosValue(value = "${mail.port}", autoRefreshed = true)
+    @NacosValue(value = "${mail.port:465}", autoRefreshed = true)
     private int port;
 
-    @NacosValue(value = "${mail.from}", autoRefreshed = true)
+    @NacosValue(value = "${mail.from:13517950816@163.com}", autoRefreshed = true)
     private String from;
 
-    @NacosValue(value = "${mail.user}", autoRefreshed = true)
+    @NacosValue(value = "${mail.user:13517950816@163.com}", autoRefreshed = true)
     private String user;
 
-    @NacosValue(value = "${mail.pass}", autoRefreshed = true)
+    @NacosValue(value = "${mail.pass:EJgNJen3jEQLd8ak}", autoRefreshed = true)
     private String pass;
 
-    @NacosValue(value = "${mail.ssl-enable}", autoRefreshed = true)
+    @NacosValue(value = "${mail.ssl-enable:true}", autoRefreshed = true)
     private boolean sslEnable;
 
     // Getters for the fields

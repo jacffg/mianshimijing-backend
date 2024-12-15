@@ -599,10 +599,12 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
         // 排序
         SortBuilder<?> sortBuilder = SortBuilders.scoreSort();
-        if (StringUtils.isNotBlank(sortField)) {
-            sortBuilder = SortBuilders.fieldSort(sortField);
-            sortBuilder.order(CommonConstant.SORT_ORDER_ASC.equals(sortOrder) ? SortOrder.ASC : SortOrder.DESC);
-        }
+//        if (StringUtils.isNotBlank(sortField)) {
+//            sortBuilder = SortBuilders.fieldSort(sortField);
+//            sortBuilder.order(CommonConstant.SORT_ORDER_ASC.equals(sortOrder) ? SortOrder.ASC : SortOrder.DESC);
+//        }
+        sortBuilder = SortBuilders.fieldSort("questionNum");
+        sortBuilder.order(SortOrder.ASC);
         // 分页
         PageRequest pageRequest = PageRequest.of(current, pageSize);
         // 构造查询
