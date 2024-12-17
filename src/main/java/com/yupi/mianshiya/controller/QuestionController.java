@@ -285,7 +285,7 @@ public class QuestionController {
         ThrowUtils.throwIf(questionQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long size = questionQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size >= 200, ErrorCode.PARAMS_ERROR);
+//        ThrowUtils.throwIf(size >= 200, ErrorCode.PARAMS_ERROR);
         // 查询数据库
         Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
         // 获取封装类
@@ -304,7 +304,7 @@ public class QuestionController {
         ThrowUtils.throwIf(questionQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long size = questionQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+//        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
         // 基于 IP 限流
         String remoteAddr = request.getRemoteAddr();
         Entry entry = null;
@@ -628,7 +628,7 @@ public class QuestionController {
                                                                  HttpServletRequest request) {
         long size = questionQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
+//        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
         //如果出错了就查数据库
         try {
             Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
