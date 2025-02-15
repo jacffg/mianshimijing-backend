@@ -52,7 +52,7 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
      * 校验数据
      *
      * @param questionMark
-     * @param add      对创建的数据进行校验
+     * @param add          对创建的数据进行校验
      */
     @Override
     public void validQuestionMark(QuestionMark questionMark, boolean add) {
@@ -64,21 +64,24 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
         if (add) {
             //校验
             Question question = questionService.getById(questionId);
-            ThrowUtils.throwIf(question==null, ErrorCode.NOT_FOUND_ERROR);
+            ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
 
-            //不能重复添加
-            QuestionMark questionMarkTemp = new QuestionMark();
-            questionMarkTemp.setQuestionId(questionMark.getQuestionId());
-            questionMarkTemp.setUserId(questionMark.getUserId());
+            // 防止重复添加
             QueryWrapper<QuestionMark> wrapper = new QueryWrapper<>();
-            QuestionMark res = this.getOne(wrapper);
-            if (res!=null){
-                throw  new BusinessException(ErrorCode.PARAMS_ERROR,"不能重复添加");
+            wrapper.eq("questionId", questionMark.getQuestionId())
+                    .eq("userId", questionMark.getUserId());
+
+            // 查询数据库
+            QuestionMark existingMark = this.getOne(wrapper);
+
+            if (existingMark != null) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复添加");
             }
+
 
         }
         ThrowUtils.throwIf(StringUtils.isBlank(markType), ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(MarkTypeEnum.getEnumByValue(markType)==null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(MarkTypeEnum.getEnumByValue(markType) == null, ErrorCode.PARAMS_ERROR);
     }
 
     /**
@@ -101,7 +104,6 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
         String sortOrder = questionMarkQueryRequest.getSortOrder();
         Long userId = questionMarkQueryRequest.getUserId();
         // todo 补充需要的查询条件
-
 
 
         // 精确查询
@@ -129,7 +131,6 @@ public class QuestionMarkServiceImpl extends ServiceImpl<QuestionMarkMapper, Que
         QuestionMarkVO questionMarkVO = QuestionMarkVO.objToVo(questionMark);
 
         //  可以根据需要为封装对象补充值，不需要的内容可以删除
-
 
 
         // endregion
