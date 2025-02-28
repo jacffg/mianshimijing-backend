@@ -1,6 +1,8 @@
 package com.yupi.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -11,12 +13,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.yupi.mianshiya.common.ErrorCode;
-import com.yupi.mianshiya.common.ResultUtils;
 import com.yupi.mianshiya.constant.CommonConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
 import com.yupi.mianshiya.listener.QuestionDataListener;
 import com.yupi.mianshiya.manager.AiManager;
+import com.yupi.mianshiya.manager.DeepSeekAiManager;
 import com.yupi.mianshiya.mapper.QuestionMapper;
 import com.yupi.mianshiya.model.dto.question.QuestionEsDTO;
 import com.yupi.mianshiya.model.dto.question.QuestionImportDTO;
@@ -27,7 +29,6 @@ import com.yupi.mianshiya.model.entity.QuestionBankQuestion;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.QuestionVO;
 import com.yupi.mianshiya.model.vo.UserVO;
-import com.yupi.mianshiya.rabbitmq.MyMessageProducer;
 import com.yupi.mianshiya.service.QuestionBankQuestionService;
 import com.yupi.mianshiya.service.QuestionService;
 import com.yupi.mianshiya.service.UserService;
@@ -62,13 +63,11 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.yupi.mianshiya.constant.RedisConstant.*;
-import static com.yupi.mianshiya.constant.RedisConstant.QUESTION_HOT_QUESTIONS;
 
 /**
  * 题目服务实现
@@ -85,8 +84,8 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     @Resource
     private QuestionBankQuestionService questionBankQuestionService;
 
-    @Resource
-    private AiManager aiManager;
+//    @Resource
+//    private AiManager aiManager;
 
     @Resource
     private QuestionMapper questionMapper;
@@ -96,6 +95,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     private RedissonClient redissonClient;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private DeepSeekAiManager deepSeekAiManager;
     /**
      * AI 评分系统消息
      */
@@ -418,13 +420,15 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             if (question == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
             }
-            //生成用户信息
-            String userMessage = getGenerateUserMessage(question);
-            // AI 生成
-            String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
+//            //生成用户信息
+//            String userMessage = getGenerateUserMessage(question);
+//            // AI 生成
+//            String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
             //提取答案
-            String recomdAnswer = AiUtils.extractAnswersAsString(result);
-            question.setAnswer(recomdAnswer);
+//            String recomdAnswer = AiUtils.extractAnswersAsString(result);
+
+            String answer = aiGenerateQuestionAnswer(question.getTitle());
+            question.setAnswer(answer);
             //转换
             QuestionVO questionVO = QuestionVO.objToVo(question);
             //写入缓存一小时
@@ -652,6 +656,91 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
         page.setRecords(resourceList);
         return page;
+    }
+
+    /**
+     * AI 生成题目
+     *
+     * @param questionType 题目类型，比如 Java
+     * @param number       题目数量，比如 10
+     * @param user         创建人
+     * @return ture / false
+     */
+    @Override
+    public boolean aiGenerateQuestions(String questionType, int number, User user) {
+        if (ObjectUtil.hasEmpty(questionType, number, user)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数错误");
+        }
+        // 1. 定义系统 Prompt
+        String systemPrompt = "你是一位专业的程序员面试官，你要帮我生成 {数量} 道 {方向} 面试题，要求输出格式如下：\n" +
+                "\n" +
+                "1. 什么是 Java 中的反射？\n" +
+                "2. Java 8 中的 Stream API 有什么作用？\n" +
+                "3. xxxxxx\n" +
+                "\n" +
+                "除此之外，请不要输出任何多余的内容，不要输出开头、也不要输出结尾，只输出上面的列表。\n" +
+                "\n" +
+                "接下来我会给你要生成的题目{数量}、以及题目{方向}\n";
+        // 2. 拼接用户 Prompt
+        String userPrompt = String.format("题目数量：%s, 题目方向：%s", number, questionType);
+        // 3. 调用 AI 生成题目
+        String answer = deepSeekAiManager.doChat(systemPrompt, userPrompt);
+        // 4. 对题目进行预处理
+        // 按行拆分
+        List<String> lines = Arrays.asList(answer.split("\n"));
+        // 移除序号和 `
+        List<String> titleList = lines.stream()
+                .map(line -> StrUtil.removePrefix(line, StrUtil.subBefore(line, " ", false))) // 移除序号
+                .map(line -> line.replace("`", "")) // 移除 `
+                .collect(Collectors.toList());
+        // 5. 保存题目到数据库中
+
+        final Long[] maxQuestionNum = {getMaxQuestionNum()};
+        List<Question> questionList = titleList.stream().map(title -> {
+            Question question = new Question();
+            question.setTitle(title);
+            question.setUserId(user.getId());
+//            String tag = "[\"待审核\",\""+questionType+"\"]";
+            String tag = "[\""+questionType+"\"]";
+            // 查询最大的 questionNum
+            question.setQuestionNum(maxQuestionNum[0] +1);
+            maxQuestionNum[0] = maxQuestionNum[0] +1;
+            question.setTags(tag);
+            question.setDiffity("easy");
+            question.setIsVip(0);
+            // 优化点：可以并发生成
+            question.setAnswer(aiGenerateQuestionAnswer(title));
+            return question;
+        }).collect(Collectors.toList());
+        boolean result = this.saveBatch(questionList);
+        if (!result) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "保存题目失败");
+        }
+        return true;
+    }
+
+    /**
+     * AI 生成题解
+     *
+     * @param questionTitle
+     * @return
+     */
+    @Override
+    public String aiGenerateQuestionAnswer(String questionTitle) {
+        // 1. 定义系统 Prompt
+        String systemPrompt = "你是一位专业的程序员面试官，我会给你一道面试题，请帮我生成详细的题解。要求如下：\n" +
+                "\n" +
+                "1. 题解的语句要自然流畅\n" +
+                "2. 题解可以先给出总结性的回答，再详细解释\n" +
+                "3. 要使用 Markdown 语法输出\n" +
+                "\n" +
+                "除此之外，请不要输出任何多余的内容，不要输出开头、也不要输出结尾，只输出题解。\n" +
+                "\n" +
+                "接下来我会给你要生成的面试题";
+        // 2. 拼接用户 Prompt
+        String userPrompt = String.format("面试题：%s", questionTitle);
+        // 3. 调用 AI 生成题解
+        return deepSeekAiManager.doChat(systemPrompt, userPrompt);
     }
 
 

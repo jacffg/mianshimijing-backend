@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 通用 AI 调用能力
  */
-@Component
+//@Component
 public class AiManager {
 
     @Resource

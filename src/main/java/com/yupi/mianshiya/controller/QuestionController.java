@@ -2,6 +2,7 @@ package com.yupi.mianshiya.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.EntryType;
@@ -25,6 +26,7 @@ import com.yupi.mianshiya.exception.ThrowUtils;
 import com.yupi.mianshiya.manager.CounterManager;
 import com.yupi.mianshiya.model.dto.mail.Message;
 import com.yupi.mianshiya.model.dto.question.*;
+import com.yupi.mianshiya.model.dto.statistic.UserSignCountDTO;
 import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.enums.UserRoleEnum;
@@ -48,6 +50,7 @@ import cn.dev33.satoken.annotation.SaCheckRole;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -525,7 +528,7 @@ public class QuestionController {
                 return ResultUtils.success(res);
             }
             //写入缓存30分钟
-            valueOperations.set(QUESTION_HOT_TAGS, res, 30, TimeUnit.MINUTES);
+            valueOperations.set(QUESTION_HOT_TAGS, res, 1, TimeUnit.DAYS);
             return ResultUtils.success(res);
         } catch (Exception e) {
             log.error("抢锁失败");
@@ -579,8 +582,64 @@ public class QuestionController {
                 return ResultUtils.success(hotQuestions);
             }
             //写入缓存30分钟
-            valueOperations.set(QUESTION_HOT_QUESTIONS, hotQuestions, 30, TimeUnit.MINUTES);
+            valueOperations.set(QUESTION_HOT_QUESTIONS, hotQuestions, 1, TimeUnit.DAYS);
             return ResultUtils.success(hotQuestions);
+        } catch (Exception e) {
+            log.error("抢锁失败");
+            throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"系统繁忙");
+        } finally {
+            if (lock != null && lock.isLocked()) {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+        }
+    }
+    /**
+     * 用户签到排行榜
+     *
+     * @param request
+     * @return
+     */
+    @GetMapping("/user/signRanking")
+    public BaseResponse<List<UserSignCountDTO>> getUserSignRanking(HttpServletRequest request) {
+
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        // 缓存中直接读缓存
+        List<UserSignCountDTO> userSignRanking = (List<UserSignCountDTO>) valueOperations.get(USER_SIGN_RANKING);
+        if (userSignRanking != null) {
+            return ResultUtils.success(userSignRanking);
+        }
+        // 定义锁
+        RLock lock = redissonClient.getLock(HOT_LOCK + USER_SIGN_RANKING);
+        try {
+            // 竞争锁
+            boolean res = lock.tryLock(3, 15, TimeUnit.SECONDS);
+            // 没抢到锁，强行返回
+            if (!res) {
+                return null;
+            }
+            // 抢到锁了，执行后续业务逻辑
+            List<User> list = userService.list();
+            final List<UserSignCountDTO> userSignRankings =new ArrayList<>();
+            // 遍历用户列表，统计签到次数
+            list.forEach(user ->{
+                List<Integer> userSignInRecord = userService.getUserSignInRecord(user.getId(), null);
+                UserSignCountDTO userSignCountDTO = new UserSignCountDTO();
+                userSignCountDTO.setUserId(user.getId());
+                userSignCountDTO.setUserName(user.getUserName());
+                userSignCountDTO.setSignNum(userSignInRecord.size());
+                userSignRankings.add(userSignCountDTO);
+            });
+            //统计前十的用户
+            List<UserSignCountDTO> result = userSignRankings.stream()
+                    .sorted((o1, o2) -> o2.getSignNum().compareTo(o1.getSignNum())) // 排序
+                    .limit(5) // 取前 num 个
+                    .collect(Collectors.toList());// 收集结果
+
+            //写入缓存30分钟
+            valueOperations.set(USER_SIGN_RANKING, result, 2, TimeUnit.HOURS);
+            return ResultUtils.success(result);
         } catch (Exception e) {
             log.error("抢锁失败");
             throw  new BusinessException(ErrorCode.SYSTEM_ERROR,"系统繁忙");
@@ -639,6 +698,28 @@ public class QuestionController {
             // 获取封装类
             return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
         }
+    }
+    /**
+     * AI 生成题目（仅管理员可用）
+     *
+     * @param questionAIGenerateRequest 请求参数
+     * @param request HTTP 请求
+     * @return 是否生成成功
+     */
+    @PostMapping("/ai/generate/question")
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> aiGenerateQuestions(@RequestBody QuestionAIGenerateRequest questionAIGenerateRequest, HttpServletRequest request) {
+        String questionType = questionAIGenerateRequest.getQuestionType();
+        int number = questionAIGenerateRequest.getNumber();
+        // 校验参数
+        ThrowUtils.throwIf(StrUtil.isBlank(questionType), ErrorCode.PARAMS_ERROR, "题目类型不能为空");
+        ThrowUtils.throwIf(number <= 0, ErrorCode.PARAMS_ERROR, "题目数量必须大于 0");
+        // 获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+        // 调用 AI 生成题目服务
+        questionService.aiGenerateQuestions(questionType, number, loginUser);
+        // 返回结果
+        return ResultUtils.success(true);
     }
 
     // endregion

@@ -20,7 +20,7 @@ import java.io.File;
 
 import static com.yupi.mianshiya.constant.FileConstant.GLOBAL_TASK_DIR_NAME;
 
-//@Component
+@Component
 @Slf4j
 public class MyMessageConsumer {
 

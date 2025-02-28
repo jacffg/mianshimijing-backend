@@ -32,7 +32,7 @@ public class NacosListener implements InitializingBean {
     public void afterPropertiesSet() throws Exception {
         log.info("nacos 监听器启动");
 
-        String config = configService.getConfigAndSignListener(dataId, group, 3000L, new Listener() {
+        String config = configService.getConfigAndSignListener(dataId, group, 36000000, new Listener() {
             final ThreadFactory threadFactory = new ThreadFactory() {
                 private final AtomicInteger poolNumber = new AtomicInteger(1);
                 @Override

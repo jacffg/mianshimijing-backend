@@ -18,12 +18,22 @@ public class InitRabbitMqBean {
 
     @Value("${spring.rabbitmq.host:localhost}")
     private String host;
+    @Value("${spring.rabbitmq.port:5672}")
+    private int port;
+    @Value("${spring.rabbitmq.password}")
+    private String password;
+    @Value("${spring.rabbitmq.username}")
+    private String username;
+
 
     @PostConstruct
     public void init() {
         try {
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost(host);
+            factory.setPort(port);
+            factory.setUsername(username);
+            factory.setPassword(password);
             Connection connection = factory.newConnection();
             Channel channel = connection.createChannel();
             String EXCHANGE_NAME = "task_exchange";

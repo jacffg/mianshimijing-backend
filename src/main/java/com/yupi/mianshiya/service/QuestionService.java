@@ -112,4 +112,21 @@ public interface QuestionService extends IService<Question> {
      */
     public Page<Question> searchFromEs(QuestionQueryRequest questionQueryRequest) ;
 
+
+
+
+    /**
+     * AI 生成题目
+     * @param questionType 题目类型，比如 Java
+     * @param number 题目数量，比如 10
+     * @param user 创建人
+     * @return ture / false
+     */
+    boolean aiGenerateQuestions(String questionType, int number, User user);
+
+    /**
+     * AI 生成题解
+     * @return ture / false
+     */
+    String aiGenerateQuestionAnswer(String questionTitle);
 }

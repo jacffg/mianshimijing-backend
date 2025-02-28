@@ -24,6 +24,10 @@ public interface RedisConstant {
      */
     String QUESTION_HOT_TAGS= "question:hot:tags";
     /**
+     * 用户排行榜
+     */
+    String USER_SIGN_RANKING= "user:sign:ranking";
+    /**
      * Ai答案
      */
     String QUESTION_AIGENERATE_PREFIX_= "question:ai";

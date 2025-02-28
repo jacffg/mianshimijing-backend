@@ -10,12 +10,14 @@ import java.io.Serializable;
  * @version 1.0
  */
 @Data
-public class QuestionFavourCountDTO implements Serializable {
+public class UserSignCountDTO implements Serializable {
 
-    // 题目名称
-    private String question;
-    // 收藏量
-    private String favourNum;
+    // 用户id
+    private Long userId;
+    // 用户名字
+    private String userName;
+    // 用户签到数量
+    private Integer signNum;
     private static final long serialVersionUID = 1L;
 }
 
