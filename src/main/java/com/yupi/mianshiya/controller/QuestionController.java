@@ -634,7 +634,7 @@ public class QuestionController {
             //统计前十的用户
             List<UserSignCountDTO> result = userSignRankings.stream()
                     .sorted((o1, o2) -> o2.getSignNum().compareTo(o1.getSignNum())) // 排序
-                    .limit(5) // 取前 num 个
+                    .limit(3) // 取前 num 个
                     .collect(Collectors.toList());// 收集结果
 
             //写入缓存30分钟
