@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * Sentinel 限流熔断规则管理器
  */
-@Component
+//@Component
 public class SentinelRulesManager {
 
     @PostConstruct
